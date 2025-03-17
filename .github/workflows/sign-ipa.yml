@@ -9,6 +9,11 @@ on:
       - '.gitignore'
   workflow_dispatch:  # Keep manual trigger option
 
+# Add permissions block at the top level
+permissions:
+  contents: write  # This allows creating releases and pushing changes
+  actions: write   # This allows uploading artifacts
+
 jobs:
   sign:
     runs-on: ubuntu-latest
