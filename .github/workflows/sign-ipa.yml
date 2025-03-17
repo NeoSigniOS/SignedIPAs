@@ -20,6 +20,10 @@ jobs:
           chmod +x zsign
           sudo mv zsign /usr/local/bin/
 
+      # Create signed directory
+      - name: Create signed directory
+        run: mkdir -p signed
+
       # Sign the IPA
       - name: Sign IPA
         run: |
@@ -31,6 +35,14 @@ jobs:
         with:
           name: signed-ipa
           path: ./signed/Feather-signed.ipa
+          retention-days: 5  # Keep artifacts for 5 days
+
+      # Download previous artifacts if needed
+      - name: Download artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: signed-ipa
+          path: ./signed
 
       # Create release with signed IPA
       - name: Create Release
