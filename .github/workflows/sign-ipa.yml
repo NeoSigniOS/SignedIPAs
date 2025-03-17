@@ -27,6 +27,18 @@ jobs:
           cd ../../..
           rm -rf zsign
 
+      # Debug and check required files
+      - name: Check Required Files
+        run: |
+          mkdir -p ipa Cert
+          echo "Checking required files and directories:"
+          echo "Current directory: $(pwd)"
+          ls -la
+          echo "Cert directory contents:"
+          ls -la Cert/
+          echo "IPA directory contents:"
+          ls -la ipa/
+
       # Create signed directory
       - name: Create signed directory
         run: mkdir -p signed
@@ -34,7 +46,19 @@ jobs:
       # Sign the IPA
       - name: Sign IPA
         run: |
-          zsign -k ./Cert/cert.p12 -p "1234" -m ./Cert/prov.mobileprovision -o ./signed/Feather-signed.ipa ./ipa/Feather.ipa
+          if [ ! -f "./Cert/distribution.p12" ]; then
+            echo "Error: distribution.p12 is missing!"
+            exit 1
+          fi
+          if [ ! -f "./Cert/distribution.mobileprovision" ]; then
+            echo "Error: distribution.mobileprovision is missing!"
+            exit 1
+          fi
+          if [ ! -f "./ipa/Feather.ipa" ]; then
+            echo "Error: Feather.ipa is missing!"
+            exit 1
+          fi
+          zsign -k ./Cert/distribution.p12 -p "1234" -m ./Cert/distribution.mobileprovision -o ./signed/Feather-signed.ipa ./ipa/Feather.ipa
         
       # Debug directory contents
       - name: List directory contents
