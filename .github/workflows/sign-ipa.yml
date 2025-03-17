@@ -23,7 +23,7 @@ jobs:
           git clone https://github.com/zhlynn/zsign.git
           cd zsign/build/linux
           make clean && make
-          sudo mv zsign /usr/local/bin/
+          sudo mv ../../bin/zsign /usr/local/bin/
           cd ../../..
           rm -rf zsign
 
