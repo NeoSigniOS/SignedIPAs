@@ -1,0 +1,65 @@
+name: Sign IPA
+
+on:
+  push:
+    paths:
+      - 'ipa/**'
+  workflow_dispatch:
+
+jobs:
+  sign:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      # Download and setup zsign
+      - name: Setup zsign
+        run: |
+          wget https://github.com/zhlynn/zsign/releases/download/v1.1.0/zsign.zip
+          unzip zsign.zip
+          chmod +x zsign
+          sudo mv zsign /usr/local/bin/
+
+      # Sign the IPA
+      - name: Sign IPA
+        run: |
+          zsign -k ./Cert/cert.p12 -p "1234" -m ./Cert/prov.mobileprovision -o ./signed/Feather-signed.ipa ./ipa/Feather.ipa
+        
+      # Upload signed IPA as artifact
+      - name: Upload Signed IPA
+        uses: actions/upload-artifact@v3
+        with:
+          name: signed-ipa
+          path: ./signed/Feather-signed.ipa
+
+      # Create release with signed IPA
+      - name: Create Release
+        id: create_release
+        uses: softprops/action-gh-release@v1
+        if: github.ref == 'refs/heads/main'
+        with:
+          files: ./signed/Feather-signed.ipa
+          tag_name: v${{ github.run_number }}
+          name: Release ${{ github.run_number }}
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # Update plist file with new IPA URL
+      - name: Update Plist
+        if: github.ref == 'refs/heads/main'
+        run: |
+          RELEASE_URL="${{ steps.create_release.outputs.upload_url }}"
+          RELEASE_URL=${RELEASE_URL%\{*} # Remove the {?name,label} suffix
+          sed -i "s|https://.*\.ipa|$RELEASE_URL|g" Feather.plist
+          
+      # Commit and push updated plist
+      - name: Commit Plist Changes
+        if: github.ref == 'refs/heads/main'
+        run: |
+          git config --global user.name 'GitHub Actions'
+          git config --global user.email 'actions@github.com'
+          git add Feather.plist
+          git commit -m "Update plist with new IPA URL" || echo "No changes to commit"
+          git push 
