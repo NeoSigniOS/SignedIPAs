@@ -48,7 +48,28 @@ jobs:
       - name: Create signed directory
         run: mkdir -p signed
 
-      # Sign the IPA
+      # Prepare IPA file
+      - name: Prepare IPA
+        run: |
+          echo "Fixing IPA file permissions..."
+          chmod 644 ./ipa/Feather.ipa
+          
+          echo "Verifying IPA structure..."
+          if unzip -l ./ipa/Feather.ipa | grep -q "Payload/"; then
+            echo "IPA structure looks valid"
+          else
+            echo "IPA might not have proper structure"
+            exit 1
+          fi
+
+      # Verify IPA file
+      - name: Verify IPA
+        run: |
+          echo "Checking IPA file:"
+          file ./ipa/Feather.ipa
+          unzip -t ./ipa/Feather.ipa || echo "IPA file may be corrupted"
+          
+      # Sign the IPA with debug output
       - name: Sign IPA
         run: |
           if [ ! -f "./Cert/Distribution.p12" ]; then
@@ -63,7 +84,14 @@ jobs:
             echo "Error: Feather.ipa is missing!"
             exit 1
           fi
-          zsign -k ./Cert/Distribution.p12 -p "1234" -m ./Cert/Distribution.mobileprovision -o ./signed/Feather-signed.ipa ./ipa/Feather.ipa
+          
+          # Try unzipping manually first
+          echo "Testing manual unzip..."
+          mkdir -p /tmp/test_unzip
+          unzip -o ./ipa/Feather.ipa -d /tmp/test_unzip
+          
+          # Run zsign with verbose output
+          zsign -k ./Cert/Distribution.p12 -p "1234" -m ./Cert/Distribution.mobileprovision -o ./signed/Feather-signed.ipa ./ipa/Feather.ipa -v
         
       # Debug directory contents
       - name: List directory contents
