@@ -29,13 +29,21 @@ jobs:
         run: |
           zsign -k ./Cert/cert.p12 -p "1234" -m ./Cert/prov.mobileprovision -o ./signed/Feather-signed.ipa ./ipa/Feather.ipa
         
-      # Upload signed IPA as artifact
+      # Debug directory contents
+      - name: List directory contents
+        run: |
+          ls -la
+          ls -la ./ipa || echo "ipa directory not found"
+          ls -la ./signed || echo "signed directory not found"
+
+      # Upload signed IPA as artifact (fixed)
       - name: Upload Signed IPA
         uses: actions/upload-artifact@v3
+        if: success() && hashFiles('./signed/Feather-signed.ipa') != ''
         with:
           name: signed-ipa
-          path: ./signed/Feather-signed.ipa
-          retention-days: 5  # Keep artifacts for 5 days
+          path: signed/Feather-signed.ipa
+          if-no-files-found: error  # Will fail the action if files are not found
 
       # Download previous artifacts if needed
       - name: Download artifacts
