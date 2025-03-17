@@ -46,19 +46,19 @@ jobs:
       # Sign the IPA
       - name: Sign IPA
         run: |
-          if [ ! -f "./Cert/distribution.p12" ]; then
-            echo "Error: distribution.p12 is missing!"
+          if [ ! -f "./Cert/Distribution.p12" ]; then
+            echo "Error: Distribution.p12 is missing!"
             exit 1
           fi
-          if [ ! -f "./Cert/distribution.mobileprovision" ]; then
-            echo "Error: distribution.mobileprovision is missing!"
+          if [ ! -f "./Cert/Distribution.mobileprovision" ]; then
+            echo "Error: Distribution.mobileprovision is missing!"
             exit 1
           fi
           if [ ! -f "./ipa/Feather.ipa" ]; then
             echo "Error: Feather.ipa is missing!"
             exit 1
           fi
-          zsign -k ./Cert/distribution.p12 -p "1234" -m ./Cert/distribution.mobileprovision -o ./signed/Feather-signed.ipa ./ipa/Feather.ipa
+          zsign -k ./Cert/Distribution.p12 -p "1234" -m ./Cert/Distribution.mobileprovision -o ./signed/Feather-signed.ipa ./ipa/Feather.ipa
         
       # Debug directory contents
       - name: List directory contents

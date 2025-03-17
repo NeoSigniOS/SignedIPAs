@@ -1,4 +1,4 @@
 .DS_Store
-Cert/distribution.p12
-Cert/distribution.mobileprovision
+Cert/Distribution.p12
+Cert/Distribution.mobileprovision
 signed/
