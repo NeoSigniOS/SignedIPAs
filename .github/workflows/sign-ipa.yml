@@ -65,34 +65,40 @@ jobs:
       # Verify IPA file
       - name: Verify IPA
         run: |
-          echo "Checking IPA file:"
-          file ./ipa/Feather.ipa
-          unzip -t ./ipa/Feather.ipa || echo "IPA file may be corrupted"
+          echo "IPA file size and permissions:"
+          ls -lh ./ipa/Feather.ipa
           
-      # Sign the IPA with debug output
+          echo "Testing IPA contents:"
+          unzip -l ./ipa/Feather.ipa || echo "Failed to list IPA contents"
+          
+          echo "Creating test directory:"
+          mkdir -p test_unzip
+          
+          echo "Attempting to unzip IPA:"
+          unzip -o ./ipa/Feather.ipa -d test_unzip || echo "Failed to unzip IPA"
+          
+          echo "Test directory contents:"
+          ls -la test_unzip
+
+      # Sign the IPA with error handling
       - name: Sign IPA
         run: |
-          if [ ! -f "./Cert/Distribution.p12" ]; then
-            echo "Error: Distribution.p12 is missing!"
-            exit 1
-          fi
-          if [ ! -f "./Cert/Distribution.mobileprovision" ]; then
-            echo "Error: Distribution.mobileprovision is missing!"
-            exit 1
-          fi
-          if [ ! -f "./ipa/Feather.ipa" ]; then
-            echo "Error: Feather.ipa is missing!"
-            exit 1
-          fi
+          # Verify certificates
+          echo "Certificate files:"
+          ls -la ./Cert/
           
-          # Try unzipping manually first
-          echo "Testing manual unzip..."
-          mkdir -p /tmp/test_unzip
-          unzip -o ./ipa/Feather.ipa -d /tmp/test_unzip
+          # Run zsign with full debugging
+          set -x  # Enable command echo
+          zsign -k ./Cert/Distribution.p12 -p "1234" -m ./Cert/Distribution.mobileprovision -o ./signed/Feather-signed.ipa ./ipa/Feather.ipa -v || {
+            echo "zsign failed with error code $?"
+            echo "Checking if temporary files exist:"
+            ls -la /tmp/zsign_folder_* || echo "No temp folder found"
+            exit 1
+          }
           
-          # Run zsign with verbose output
-          zsign -k ./Cert/Distribution.p12 -p "1234" -m ./Cert/Distribution.mobileprovision -o ./signed/Feather-signed.ipa ./ipa/Feather.ipa -v
-        
+          echo "Checking signed IPA:"
+          ls -la ./signed/ || echo "Signed directory is empty"
+
       # Debug directory contents
       - name: List directory contents
         run: |
@@ -100,9 +106,10 @@ jobs:
           ls -la ./ipa || echo "ipa directory not found"
           ls -la ./signed || echo "signed directory not found"
 
-      # Upload signed IPA as artifact
+      # Upload artifact with better error handling
       - name: Upload Signed IPA
-        uses: actions/upload-artifact@c7d193f32edcb7bfad88892161225aeda64e9392  # v4.0.0
+        uses: actions/upload-artifact@c7d193f32edcb7bfad88892161225aeda64e9392
+        if: success() && hashFiles('./signed/Feather-signed.ipa') != ''
         with:
           name: signed-ipa
           path: signed/Feather-signed.ipa
