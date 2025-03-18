@@ -111,21 +111,13 @@ jobs:
           # Create signed directory
           mkdir -p signed
           
-          # Run zsign with proper flags
+          # Run zsign with proper flags (fixed formatting)
           echo "Running zsign..."
-          zsign \
-            -f \                     # Force sign without cache
-            -k ./Cert/Distribution.p12 \
-            -p 1234 \
-            -m ./Cert/Distribution.mobileprovision \
-            -o ./signed/Feather-signed.ipa \
-            -z 9 \                   # Maximum compression
-            -v \                     # Verbose output
-            ./ipa/Feather.ipa || {
-              echo "zsign failed with error code $?"
-              echo "Temp directory contents:"
-              ls -la /tmp/zsign_folder_* || echo "No temp folder found"
-              exit 1
+          zsign -f -k ./Cert/Distribution.p12 -p 1234 -m ./Cert/Distribution.mobileprovision -o ./signed/Feather-signed.ipa -z 9 -v ./ipa/Feather.ipa || {
+            echo "zsign failed with error code $?"
+            echo "Temp directory contents:"
+            ls -la /tmp/zsign_folder_* || echo "No temp folder found"
+            exit 1
           }
           
           # Verify signed IPA was created
