@@ -63,7 +63,7 @@ jobs:
           fi
 
       # Verify IPA file
-      - name: Verify IPA
+      - name: Verify IPA File
         run: |
           echo "IPA file size and permissions:"
           ls -lh ./ipa/Feather.ipa
@@ -80,6 +80,14 @@ jobs:
           echo "Test directory contents:"
           ls -la test_unzip
 
+      # Download artifacts if needed
+      - name: Download artifacts
+        uses: actions/download-artifact@c850b930e6ba138125429b7e5c93fc707a7f8427
+        with:
+          name: signed-ipa
+          path: ./signed
+        continue-on-error: true
+
       # Sign the IPA with error handling
       - name: Sign IPA
         run: |
@@ -87,9 +95,12 @@ jobs:
           echo "Certificate files:"
           ls -la ./Cert/
           
+          # Create signed directory if it doesn't exist
+          mkdir -p signed
+          
           # Run zsign with full debugging
           set -x  # Enable command echo
-          zsign -k ./Cert/Distribution.p12 -p "1234" -m ./Cert/Distribution.mobileprovision -o ./signed/Feather-signed.ipa ./ipa/Feather.ipa -v || {
+          zsign -k ./Cert/Distribution.p12 -p "$(cat ./Cert/password.txt)" -m ./Cert/Distribution.mobileprovision -o ./signed/Feather-signed.ipa ./ipa/Feather.ipa -v || {
             echo "zsign failed with error code $?"
             echo "Checking if temporary files exist:"
             ls -la /tmp/zsign_folder_* || echo "No temp folder found"
@@ -106,7 +117,7 @@ jobs:
           ls -la ./ipa || echo "ipa directory not found"
           ls -la ./signed || echo "signed directory not found"
 
-      # Upload artifact with better error handling
+      # Upload artifact only if signing succeeded
       - name: Upload Signed IPA
         uses: actions/upload-artifact@c7d193f32edcb7bfad88892161225aeda64e9392
         if: success() && hashFiles('./signed/Feather-signed.ipa') != ''
@@ -114,13 +125,6 @@ jobs:
           name: signed-ipa
           path: signed/Feather-signed.ipa
           if-no-files-found: error
-
-      # Download artifacts if needed
-      - name: Download artifacts
-        uses: actions/download-artifact@c850b930e6ba138125429b7e5c93fc707a7f8427  # v4.1.0
-        with:
-          name: signed-ipa
-          path: ./signed
 
       # Create release with signed IPA
       - name: Create Release
