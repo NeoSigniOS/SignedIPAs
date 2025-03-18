@@ -93,7 +93,7 @@ jobs:
 
       # Download artifacts if needed
       - name: Download artifacts
-        uses: actions/download-artifact@c850b930e6ba138125429b7e5c93fc707a7f8427
+        uses: actions/download-artifact@v4
         with:
           name: signed-ipa
           path: ./signed
@@ -140,12 +140,13 @@ jobs:
 
       # Upload artifact only if signing succeeded
       - name: Upload Signed IPA
-        uses: actions/upload-artifact@c7d193f32edcb7bfad88892161225aeda64e9392
+        uses: actions/upload-artifact@v4
         if: success() && hashFiles('./signed/Feather-signed.ipa') != ''
         with:
           name: signed-ipa
           path: signed/Feather-signed.ipa
           if-no-files-found: error
+          retention-days: 90
 
       # Create release with signed IPA
       - name: Create Release
