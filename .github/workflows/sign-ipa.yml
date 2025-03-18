@@ -98,17 +98,20 @@ jobs:
           # Create signed directory if it doesn't exist
           mkdir -p signed
           
-          # Run zsign with full debugging
-          set -x  # Enable command echo
-          zsign -k ./Cert/Distribution.p12 -p "$(cat ./Cert/password.txt)" -m ./Cert/Distribution.mobileprovision -o ./signed/Feather-signed.ipa ./ipa/Feather.ipa -v || {
+          # Use password directly
+          echo "Using password: 1234"
+          zsign -k ./Cert/Distribution.p12 -p "1234" -m ./Cert/Distribution.mobileprovision -o ./signed/Feather-signed.ipa ./ipa/Feather.ipa -v || {
             echo "zsign failed with error code $?"
             echo "Checking if temporary files exist:"
             ls -la /tmp/zsign_folder_* || echo "No temp folder found"
             exit 1
           }
           
-          echo "Checking signed IPA:"
-          ls -la ./signed/ || echo "Signed directory is empty"
+          # Verify signed IPA was created
+          if [ ! -f "./signed/Feather-signed.ipa" ]; then
+            echo "Signed IPA was not created!"
+            exit 1
+          fi
 
       # Debug directory contents
       - name: List directory contents
@@ -117,7 +120,7 @@ jobs:
           ls -la ./ipa || echo "ipa directory not found"
           ls -la ./signed || echo "signed directory not found"
 
-      # Upload artifact only if signing succeeded
+      # Upload artifact with name
       - name: Upload Signed IPA
         uses: actions/upload-artifact@c7d193f32edcb7bfad88892161225aeda64e9392
         if: success() && hashFiles('./signed/Feather-signed.ipa') != ''
@@ -130,7 +133,7 @@ jobs:
       - name: Create Release
         id: create_release
         uses: softprops/action-gh-release@v1
-        if: github.ref == 'refs/heads/main'
+        if: github.ref == 'refs/heads/main' && hashFiles('./signed/Feather-signed.ipa') != ''
         with:
           files: ./signed/Feather-signed.ipa
           tag_name: v${{ github.run_number }}
@@ -140,12 +143,50 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      # Copy plist file to workspace
+      - name: Setup Plist File
+        run: |
+          echo "Creating plist file..."
+          cat > Feather.plist << 'EOL'
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>items</key>
+  <array>
+    <dict>
+      <key>assets</key>
+      <array>
+        <dict>
+          <key>kind</key>
+          <string>software-package</string>
+          <key>url</key>
+          <string>https://github.com/NeoSigniOS/SignedIPAs/raw/main/ipa/Feather.ipa</string>
+        </dict>
+      </array>
+      <key>metadata</key>
+      <dict>
+        <key>bundle-identifier</key>
+        <string>kh.crysalis.feather</string>
+        <key>bundle-version</key>
+        <string>1.4.0</string>
+        <key>kind</key>
+        <string>software</string>
+        <key>title</key>
+        <string>Feather</string>
+      </dict>
+    </dict>
+  </array>
+</dict>
+</plist>
+EOL
+
       # Update plist file with new IPA URL
       - name: Update Plist File
-        if: github.ref == 'refs/heads/main'
+        if: github.ref == 'refs/heads/main' && success()
         run: |
-          RELEASE_URL="${{ steps.create_release.outputs.upload_url }}"
-          RELEASE_URL=${RELEASE_URL%\{*}
+          RELEASE_URL="${{ steps.create_release.outputs.html_url }}"
+          RELEASE_URL="${RELEASE_URL/tag/download}/Feather-signed.ipa"
           sed -i "s|https://.*\.ipa|$RELEASE_URL|g" Feather.plist
           
       # Commit and push updated plist
