@@ -102,33 +102,36 @@ jobs:
       # Sign the IPA with error handling
       - name: Sign IPA
         run: |
-          # Verify files exist
-          echo "Checking required files..."
-          ls -la ./Cert/Distribution.p12
-          ls -la ./Cert/Distribution.mobileprovision
-          ls -la ./ipa/Feather.ipa
+          # Get absolute paths
+          CERT_PATH=$(realpath ./Cert/Distribution.p12)
+          PROV_PATH=$(realpath ./Cert/Distribution.mobileprovision)
+          IPA_PATH=$(realpath ./ipa/Feather.ipa)
+          SIGNED_PATH=$(realpath ./signed)/Feather-signed.ipa
           
-          # Create signed directory
-          mkdir -p signed
+          echo "Using paths:"
+          echo "Certificate: $CERT_PATH"
+          echo "Provisioning: $PROV_PATH"
+          echo "IPA: $IPA_PATH"
+          echo "Output: $SIGNED_PATH"
           
-          # Run zsign with proper flags (fixed formatting)
-          echo "Running zsign..."
-          zsign -f -k ./Cert/Distribution.p12 -p 1234 -m ./Cert/Distribution.mobileprovision -o ./signed/Feather-signed.ipa -z 9 -v ./ipa/Feather.ipa || {
-            echo "zsign failed with error code $?"
-            echo "Temp directory contents:"
-            ls -la /tmp/zsign_folder_* || echo "No temp folder found"
+          # Run zsign with absolute paths
+          zsign -f -k "$CERT_PATH" -p 1234 -m "$PROV_PATH" -o "$SIGNED_PATH" -z 9 -v "$IPA_PATH"
+          
+          # Check exit code
+          ZSIGN_EXIT=$?
+          if [ $ZSIGN_EXIT -ne 0 ]; then
+            echo "zsign failed with exit code $ZSIGN_EXIT"
             exit 1
-          }
+          fi
           
           # Verify signed IPA was created
-          if [ ! -f "./signed/Feather-signed.ipa" ]; then
+          if [ ! -f "$SIGNED_PATH" ]; then
             echo "Signed IPA was not created!"
-            echo "Signed directory contents:"
             ls -la ./signed/
             exit 1
           else
             echo "Signed IPA created successfully:"
-            ls -lh ./signed/Feather-signed.ipa
+            ls -lh "$SIGNED_PATH"
           fi
 
       # Debug directory contents
@@ -200,6 +203,7 @@ jobs:
           EOL
 
       # Update plist file with new IPA URL
+      - name: Update Plist URL
       - name: Update Plist File
         if: github.ref == 'refs/heads/main' && success()
         run: |
