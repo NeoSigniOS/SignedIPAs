@@ -70,15 +70,6 @@ jobs:
           
           echo "Testing IPA contents:"
           unzip -l ./ipa/Feather.ipa || echo "Failed to list IPA contents"
-          
-          echo "Creating test directory:"
-          mkdir -p test_unzip
-          
-          echo "Attempting to unzip IPA:"
-          unzip -o ./ipa/Feather.ipa -d test_unzip || echo "Failed to unzip IPA"
-          
-          echo "Test directory contents:"
-          ls -la test_unzip
 
       # Verify IPA Structure
       - name: Verify IPA Structure
@@ -111,55 +102,42 @@ jobs:
       # Sign the IPA with error handling
       - name: Sign IPA
         run: |
-          # Verify certificates and files
-          echo "Checking required files:"
-          if [ ! -f "./Cert/Distribution.p12" ]; then
-            echo "Error: Distribution.p12 is missing!"
-            exit 1
-          fi
-          if [ ! -f "./Cert/Distribution.mobileprovision" ]; then
-            echo "Error: Distribution.mobileprovision is missing!"
-            exit 1
-          fi
-          if [ ! -f "./ipa/Feather.ipa" ]; then
-            echo "Error: Feather.ipa is missing!"
-            exit 1
-          fi
-          
-          echo "File permissions and sizes:"
-          ls -lh ./Cert/Distribution.p12
-          ls -lh ./Cert/Distribution.mobileprovision
-          ls -lh ./ipa/Feather.ipa
+          # Verify files exist
+          echo "Checking required files..."
+          ls -la ./Cert/Distribution.p12
+          ls -la ./Cert/Distribution.mobileprovision
+          ls -la ./ipa/Feather.ipa
           
           # Create signed directory
           mkdir -p signed
           
-          # Run zsign with verbose output
+          # Run zsign with proper flags
           echo "Running zsign..."
-          set -x  # Enable command tracing
-          zsign -v -k ./Cert/Distribution.p12 -p "1234" -m ./Cert/Distribution.mobileprovision -o ./signed/Feather-signed.ipa ./ipa/Feather.ipa || {
-            echo "zsign failed with error code $?"
-            # Check temp directory
-            echo "Temp directory contents:"
-            ls -la /tmp/zsign_folder_* || echo "No temp folder found"
-            # Check if IPA can be unzipped
-            echo "Testing IPA file:"
-            unzip -l ./ipa/Feather.ipa || echo "IPA file might be corrupted"
-            exit 1
+          zsign \
+            -f \                     # Force sign without cache
+            -k ./Cert/Distribution.p12 \
+            -p 1234 \
+            -m ./Cert/Distribution.mobileprovision \
+            -o ./signed/Feather-signed.ipa \
+            -z 9 \                   # Maximum compression
+            -v \                     # Verbose output
+            ./ipa/Feather.ipa || {
+              echo "zsign failed with error code $?"
+              echo "Temp directory contents:"
+              ls -la /tmp/zsign_folder_* || echo "No temp folder found"
+              exit 1
           }
           
-          # Verify signed IPA
+          # Verify signed IPA was created
           if [ ! -f "./signed/Feather-signed.ipa" ]; then
             echo "Signed IPA was not created!"
-            # Check signed directory
             echo "Signed directory contents:"
             ls -la ./signed/
             exit 1
+          else
+            echo "Signed IPA created successfully:"
+            ls -lh ./signed/Feather-signed.ipa
           fi
-          
-          # Verify signed IPA size
-          echo "Signed IPA details:"
-          ls -lh ./signed/Feather-signed.ipa || echo "Failed to list signed IPA"
 
       # Debug directory contents
       - name: List directory contents
